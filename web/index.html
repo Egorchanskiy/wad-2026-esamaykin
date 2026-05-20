@@ -30,14 +30,14 @@
       <div class="row">
         <div>
           <h3>Register</h3>
-          <input id="reg-login" placeholder="login" />
-          <input id="reg-password" type="password" placeholder="password" />
+          <input id="reg-login" placeholder="login (min 3 characters)" />
+          <input id="reg-password" type="password" placeholder="password (min 8 characters)" />
           <button onclick="register()">Register</button>
         </div>
         <div>
           <h3>Login</h3>
-          <input id="login-login" placeholder="login" />
-          <input id="login-password" type="password" placeholder="password" />
+          <input id="login-login" placeholder="login (min 3 characters)" />
+          <input id="login-password" type="password" placeholder="password (min 8 characters)" />
           <button onclick="login()">Login</button>
         </div>
       </div>
@@ -82,6 +82,32 @@
       document.getElementById("auth-status").textContent = access ? "Authenticated" : "Not authenticated";
     }
 
+    function showError(err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      alert(msg);
+    }
+
+    function validateAuthPayload(login, password) {
+      if (!login || login.length < 3) {
+        showError("Login must be at least 3 characters (API returns 422 otherwise).");
+        return false;
+      }
+      if (!password || password.length < 8) {
+        showError("Password must be at least 8 characters (API returns 422 otherwise).");
+        return false;
+      }
+      return true;
+    }
+
+    function requireChatId() {
+      const id = document.getElementById("chat-select").value;
+      if (!id) {
+        showError("Create or select a chat first (empty chat id caused /chats//ask 404).");
+        return null;
+      }
+      return id;
+    }
+
     async function api(path, options = {}, retry = true) {
       const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
       if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
@@ -98,19 +124,29 @@
     }
 
     async function register() {
-      const login = document.getElementById("reg-login").value;
+      const login = document.getElementById("reg-login").value.trim();
       const password = document.getElementById("reg-password").value;
-      const data = await api("/auth/register", { method: "POST", body: JSON.stringify({ login, password }) }, false);
-      setTokens(data.access_token, data.refresh_token);
-      await loadChats();
+      if (!validateAuthPayload(login, password)) return;
+      try {
+        const data = await api("/auth/register", { method: "POST", body: JSON.stringify({ login, password }) }, false);
+        setTokens(data.access_token, data.refresh_token);
+        await loadChats();
+      } catch (e) {
+        showError(e);
+      }
     }
 
     async function login() {
-      const login = document.getElementById("login-login").value;
+      const login = document.getElementById("login-login").value.trim();
       const password = document.getElementById("login-password").value;
-      const data = await api("/auth/login", { method: "POST", body: JSON.stringify({ login, password }) }, false);
-      setTokens(data.access_token, data.refresh_token);
-      await loadChats();
+      if (!validateAuthPayload(login, password)) return;
+      try {
+        const data = await api("/auth/login", { method: "POST", body: JSON.stringify({ login, password }) }, false);
+        setTokens(data.access_token, data.refresh_token);
+        await loadChats();
+      } catch (e) {
+        showError(e);
+      }
     }
 
     async function refresh() {
@@ -142,27 +178,39 @@
     }
 
     async function loadMe() {
-      const me = await api("/auth/me");
-      document.getElementById("auth-status").textContent = `Authenticated as ${me.login} (${me.auth_provider})`;
+      try {
+        const me = await api("/auth/me");
+        document.getElementById("auth-status").textContent = `Authenticated as ${me.login} (${me.auth_provider})`;
+      } catch (e) {
+        showError(e);
+      }
     }
 
     async function createChat() {
-      const title = document.getElementById("chat-title").value || "New chat";
-      await api("/chats", { method: "POST", body: JSON.stringify({ title }) });
-      await loadChats();
+      try {
+        const title = document.getElementById("chat-title").value || "New chat";
+        await api("/chats", { method: "POST", body: JSON.stringify({ title }) });
+        await loadChats();
+      } catch (e) {
+        showError(e);
+      }
     }
 
     async function loadChats() {
-      const chats = await api("/chats");
-      const select = document.getElementById("chat-select");
-      select.innerHTML = "";
-      chats.forEach(chat => {
-        const option = document.createElement("option");
-        option.value = chat.id;
-        option.textContent = `${chat.title} (${new Date(chat.updated_at).toLocaleString()})`;
-        select.appendChild(option);
-      });
-      if (chats.length) await loadMessages(chats[0].id);
+      try {
+        const chats = await api("/chats");
+        const select = document.getElementById("chat-select");
+        select.innerHTML = "";
+        chats.forEach(chat => {
+          const option = document.createElement("option");
+          option.value = chat.id;
+          option.textContent = `${chat.title} (${new Date(chat.updated_at).toLocaleString()})`;
+          select.appendChild(option);
+        });
+        if (chats.length) await loadMessages(chats[0].id);
+      } catch (e) {
+        showError(e);
+      }
     }
 
     async function onChatChange() {
@@ -171,11 +219,15 @@
     }
 
     async function loadMessages(chatId) {
-      const messages = await api(`/chats/${chatId}/messages`);
-      const el = document.getElementById("messages");
-      el.innerHTML = "";
-      messages.forEach(m => appendMessage(m.role, m.content));
-      el.scrollTop = el.scrollHeight;
+      try {
+        const messages = await api(`/chats/${chatId}/messages`);
+        const el = document.getElementById("messages");
+        el.innerHTML = "";
+        messages.forEach(m => appendMessage(m.role, m.content));
+        el.scrollTop = el.scrollHeight;
+      } catch (e) {
+        showError(e);
+      }
     }
 
     function appendMessage(role, content) {
@@ -187,26 +239,44 @@
     }
 
     async function sendRawMessage() {
-      const chatId = document.getElementById("chat-select").value;
+      const chatId = requireChatId();
+      if (!chatId) return;
       const content = document.getElementById("prompt").value;
-      const data = await api(`/chats/${chatId}/messages`, {
-        method: "POST",
-        body: JSON.stringify({ content }),
-      });
-      appendMessage(data.role, data.content);
-      document.getElementById("prompt").value = "";
+      if (!content.trim()) {
+        showError("Message content cannot be empty.");
+        return;
+      }
+      try {
+        const data = await api(`/chats/${chatId}/messages`, {
+          method: "POST",
+          body: JSON.stringify({ content }),
+        });
+        appendMessage(data.role, data.content);
+        document.getElementById("prompt").value = "";
+      } catch (e) {
+        showError(e);
+      }
     }
 
     async function ask() {
-      const chatId = document.getElementById("chat-select").value;
+      const chatId = requireChatId();
+      if (!chatId) return;
       const prompt = document.getElementById("prompt").value;
-      const data = await api(`/chats/${chatId}/ask`, {
-        method: "POST",
-        body: JSON.stringify({ prompt }),
-      });
-      appendMessage(data.user_message.role, data.user_message.content);
-      appendMessage(data.assistant_message.role, data.assistant_message.content);
-      document.getElementById("prompt").value = "";
+      if (!prompt.trim()) {
+        showError("Prompt cannot be empty.");
+        return;
+      }
+      try {
+        const data = await api(`/chats/${chatId}/ask`, {
+          method: "POST",
+          body: JSON.stringify({ prompt }),
+        });
+        appendMessage(data.user_message.role, data.user_message.content);
+        appendMessage(data.assistant_message.role, data.assistant_message.content);
+        document.getElementById("prompt").value = "";
+      } catch (e) {
+        showError(e);
+      }
     }
 
     if (accessToken) {

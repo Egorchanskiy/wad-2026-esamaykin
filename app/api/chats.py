@@ -15,6 +15,14 @@ from app.services.llm_service import LlmService
 router = APIRouter(prefix="/chats", tags=["chats"])
 
 
+def _require_chat_id(chat_id: str) -> None:
+    if not chat_id or not chat_id.strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="chat_id is required (select a chat first)",
+        )
+
+
 def _chat_to_response(chat: dict) -> ChatResponse:
     return ChatResponse(
         id=str(chat["_id"]),
@@ -54,6 +62,7 @@ async def list_messages(
     chat_id: str,
     current_user: dict = Depends(get_current_user),
 ) -> list[MessageResponse]:
+    _require_chat_id(chat_id)
     try:
         messages = await ChatService().list_messages(chat_id, str(current_user["_id"]))
     except ValueError as exc:
@@ -70,6 +79,7 @@ async def add_message(
     payload: MessageCreateRequest,
     current_user: dict = Depends(get_current_user),
 ) -> MessageResponse:
+    _require_chat_id(chat_id)
     chat_service = ChatService()
     chat = await chat_service.get_chat(chat_id, str(current_user["_id"]))
     if not chat:
@@ -84,6 +94,7 @@ async def ask_llm(
     payload: AskRequest,
     current_user: dict = Depends(get_current_user),
 ) -> AskResponse:
+    _require_chat_id(chat_id)
     chat_service = ChatService()
     llm_service = LlmService()
     chat = await chat_service.get_chat(chat_id, str(current_user["_id"]))

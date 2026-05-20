@@ -66,3 +66,28 @@ Chats:
 - `GET /api/v1/chats/{chat_id}/messages`
 - `POST /api/v1/chats/{chat_id}/messages`
 - `POST /api/v1/chats/{chat_id}/ask`
+
+## Troubleshooting (common log lines)
+
+**`422` on `/auth/register` or `/auth/login`**
+
+- Not caused by missing GitHub env vars.
+- The API expects JSON: `{"login": "...", "password": "..."}` with `Content-Type: application/json`.
+- Validation rules: **login** length 3–64, **password** length 8–128. Shorter values return `422` with a Pydantic detail body.
+
+**`401` on `/auth/me` or `/chats`**
+
+- Normal if you are not logged in or the access token expired. Use **Login** or **Refresh**; the SPA stores tokens in `localStorage`.
+
+**`POST /api/v1/chats//ask` → `404`**
+
+- The URL had an **empty chat id** (double slash). Create a chat and select it in the dropdown before **Ask LLM**.
+
+**`(trapped) error reading bcrypt version` / register `400`**
+
+- This was a **passlib + bcrypt** incompatibility in older installs. The project now uses the **`bcrypt` package directly** (no passlib). Rebuild the image: `docker compose build --no-cache api` then `docker compose up`.
+
+**Example `.env` only**
+
+- `JWT_SECRET=change-me` is enough for local try-outs.
+- GitHub OAuth buttons will fail until `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` / `GITHUB_REDIRECT_URI` are set; password register/login still works.

@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WAD 2026 Chat</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; background: #f6f7fb; color: #212529; }
+    .container { max-width: 980px; margin: 24px auto; padding: 0 16px; }
+    .card { background: #fff; border-radius: 10px; padding: 16px; margin-bottom: 16px; box-shadow: 0 1px 8px rgba(0,0,0,0.06); }
+    h1, h2 { margin-top: 0; }
+    input, button, textarea { font-size: 14px; padding: 8px; margin: 4px 0; }
+    input, textarea { width: 100%; box-sizing: border-box; }
+    button { cursor: pointer; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .messages { max-height: 380px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; border-radius: 8px; background: #fafafa; }
+    .msg { padding: 8px; border-radius: 8px; margin: 6px 0; }
+    .user { background: #e8f3ff; }
+    .assistant { background: #eef8ec; }
+    .muted { color: #666; font-size: 13px; }
+    .inline { display: flex; gap: 8px; align-items: center; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>WAD 2026 Chat (SPA)</h1>
+
+    <div class="card">
+      <h2>Authentication</h2>
+      <div class="row">
+        <div>
+          <h3>Register</h3>
+          <input id="reg-login" placeholder="login" />
+          <input id="reg-password" type="password" placeholder="password" />
+          <button onclick="register()">Register</button>
+        </div>
+        <div>
+          <h3>Login</h3>
+          <input id="login-login" placeholder="login" />
+          <input id="login-password" type="password" placeholder="password" />
+          <button onclick="login()">Login</button>
+        </div>
+      </div>
+      <div class="inline">
+        <button onclick="logout()">Logout</button>
+        <button onclick="loadMe()">Load Me</button>
+      </div>
+      <p class="muted" id="auth-status">Not authenticated</p>
+    </div>
+
+    <div class="card">
+      <h2>Chats</h2>
+      <div class="inline">
+        <input id="chat-title" placeholder="New chat title" />
+        <button onclick="createChat()">Create chat</button>
+        <button onclick="loadChats()">Refresh list</button>
+      </div>
+      <select id="chat-select" onchange="onChatChange()" style="width: 100%; margin-top: 8px;"></select>
+    </div>
+
+    <div class="card">
+      <h2>Conversation</h2>
+      <div class="messages" id="messages"></div>
+      <textarea id="prompt" rows="3" placeholder="Ask the model..."></textarea>
+      <div class="inline">
+        <button onclick="ask()">Ask LLM</button>
+        <button onclick="sendRawMessage()">Send user message only</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API = "/api/v1";
+    let accessToken = localStorage.getItem("access_token") || "";
+    let refreshToken = localStorage.getItem("refresh_token") || "";
+
+    function setTokens(access, refresh) {
+      accessToken = access;
+      refreshToken = refresh;
+      localStorage.setItem("access_token", access || "");
+      localStorage.setItem("refresh_token", refresh || "");
+      document.getElementById("auth-status").textContent = access ? "Authenticated" : "Not authenticated";
+    }
+
+    async function api(path, options = {}, retry = true) {
+      const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
+      if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
+      const response = await fetch(`${API}${path}`, { ...options, headers });
+      if (response.status === 401 && refreshToken && retry) {
+        const refreshed = await refresh();
+        if (refreshed) return api(path, options, false);
+      }
+      if (!response.ok) {
+        const txt = await response.text();
+        throw new Error(txt || `HTTP ${response.status}`);
+      }
+      return response.status === 204 ? null : response.json();
+    }
+
+    async function register() {
+      const login = document.getElementById("reg-login").value;
+      const password = document.getElementById("reg-password").value;
+      const data = await api("/auth/register", { method: "POST", body: JSON.stringify({ login, password }) }, false);
+      setTokens(data.access_token, data.refresh_token);
+      await loadChats();
+    }
+
+    async function login() {
+      const login = document.getElementById("login-login").value;
+      const password = document.getElementById("login-password").value;
+      const data = await api("/auth/login", { method: "POST", body: JSON.stringify({ login, password }) }, false);
+      setTokens(data.access_token, data.refresh_token);
+      await loadChats();
+    }
+
+    async function refresh() {
+      try {
+        const data = await fetch(`${API}/auth/refresh`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ refresh_token: refreshToken }),
+        }).then(async r => r.ok ? r.json() : null);
+        if (!data) return false;
+        setTokens(data.access_token, data.refresh_token);
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
+    async function logout() {
+      if (refreshToken) {
+        await fetch(`${API}/auth/logout`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ refresh_token: refreshToken }),
+        });
+      }
+      setTokens("", "");
+      document.getElementById("chat-select").innerHTML = "";
+      document.getElementById("messages").innerHTML = "";
+    }
+
+    async function loadMe() {
+      const me = await api("/auth/me");
+      document.getElementById("auth-status").textContent = `Authenticated as ${me.login} (${me.auth_provider})`;
+    }
+
+    async function createChat() {
+      const title = document.getElementById("chat-title").value || "New chat";
+      await api("/chats", { method: "POST", body: JSON.stringify({ title }) });
+      await loadChats();
+    }
+
+    async function loadChats() {
+      const chats = await api("/chats");
+      const select = document.getElementById("chat-select");
+      select.innerHTML = "";
+      chats.forEach(chat => {
+        const option = document.createElement("option");
+        option.value = chat.id;
+        option.textContent = `${chat.title} (${new Date(chat.updated_at).toLocaleString()})`;
+        select.appendChild(option);
+      });
+      if (chats.length) await loadMessages(chats[0].id);
+    }
+
+    async function onChatChange() {
+      const id = document.getElementById("chat-select").value;
+      if (id) await loadMessages(id);
+    }
+
+    async function loadMessages(chatId) {
+      const messages = await api(`/chats/${chatId}/messages`);
+      const el = document.getElementById("messages");
+      el.innerHTML = "";
+      messages.forEach(m => appendMessage(m.role, m.content));
+      el.scrollTop = el.scrollHeight;
+    }
+
+    function appendMessage(role, content) {
+      const el = document.getElementById("messages");
+      const item = document.createElement("div");
+      item.className = `msg ${role === "assistant" ? "assistant" : "user"}`;
+      item.textContent = `${role}: ${content}`;
+      el.appendChild(item);
+    }
+
+    async function sendRawMessage() {
+      const chatId = document.getElementById("chat-select").value;
+      const content = document.getElementById("prompt").value;
+      const data = await api(`/chats/${chatId}/messages`, {
+        method: "POST",
+        body: JSON.stringify({ content }),
+      });
+      appendMessage(data.role, data.content);
+      document.getElementById("prompt").value = "";
+    }
+
+    async function ask() {
+      const chatId = document.getElementById("chat-select").value;
+      const prompt = document.getElementById("prompt").value;
+      const data = await api(`/chats/${chatId}/ask`, {
+        method: "POST",
+        body: JSON.stringify({ prompt }),
+      });
+      appendMessage(data.user_message.role, data.user_message.content);
+      appendMessage(data.assistant_message.role, data.assistant_message.content);
+      document.getElementById("prompt").value = "";
+    }
+
+    if (accessToken) {
+      loadMe().then(loadChats).catch(() => setTokens("", ""));
+    }
+  </script>
+</body>
+</html>

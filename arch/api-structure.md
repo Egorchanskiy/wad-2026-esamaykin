@@ -23,3 +23,7 @@ Base prefix: `/api/v1`
 - `GET /chats/{chat_id}/messages` - full chat history
 - `POST /chats/{chat_id}/messages` - add raw user message
 - `POST /chats/{chat_id}/ask` - ask LLM, persist user+assistant messages
+
+## Note
+
+You can find dull report in wad-2026-esamaykin.pdf

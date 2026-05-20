@@ -48,3 +48,7 @@ Refresh token sessions:
 - key format: `refresh:{user_id}:{token_id}`
 - value: `"1"`
 - TTL: `2592000` seconds (30 days by default)
+
+## Note
+
+You can find dull report in wad-2026-esamaykin.pdf

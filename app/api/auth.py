@@ -1,5 +1,7 @@
+import json
+
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.responses import RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 
 from app.api.deps import get_current_user
 from app.schemas.auth import (
@@ -89,13 +91,45 @@ async def github_login() -> RedirectResponse:
     return RedirectResponse(url=f"https://github.com/login/oauth/authorize?{query}")
 
 
-@router.get("/github/callback", response_model=TokenResponse)
-async def github_callback(code: str) -> TokenResponse:
+@router.get("/github/callback")
+async def github_callback(
+    code: str | None = None,
+    error: str | None = None,
+    error_description: str | None = None,
+):
+    if error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=error_description or error,
+        )
+    if not code:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "Missing GitHub authorization code. "
+                "Start login at GET /api/v1/auth/github/login — "
+                "do not open /github/callback directly or refresh this page."
+            ),
+        )
     auth_service = AuthService()
     try:
-        return await auth_service.login_with_github_code(code)
+        tokens = await auth_service.login_with_github_code(code)
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(exc),
         ) from exc
+
+    access = json.dumps(tokens.access_token)
+    refresh = json.dumps(tokens.refresh_token)
+    html = f"""<!doctype html>
+<html><head><meta charset="utf-8"><title>GitHub login</title></head>
+<body>
+<p>GitHub login successful. Redirecting to app...</p>
+<script>
+localStorage.setItem("access_token", {access});
+localStorage.setItem("refresh_token", {refresh});
+window.location.href = "/";
+</script>
+</body></html>"""
+    return HTMLResponse(html)

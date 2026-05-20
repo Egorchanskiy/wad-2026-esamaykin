@@ -23,4 +23,7 @@ Current implementation includes:
 - Local LLM integration (`app/services/llm_service.py`)
 - API routers (`app/api/router.py`)
 - Simple SPA client (`web/index.html`) served from `/`
-- TODO: try to add cashing
+
+## Note
+
+You can find dull report in wad-2026-esamaykin.pdf

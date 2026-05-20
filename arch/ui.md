@@ -9,15 +9,13 @@ The project uses **SPA** strategy, therefore backend architecture follows **MCS*
 - `/` main SPA page with:
   - registration form
   - login form
-  - auth status panel (`me`, logout)
+  - GitHub OAuth
+  - auth status panel (`me`, logout) - local and GitHub
   - chat list and chat creation
   - message history view
   - prompt input and "Ask LLM" action
+  - aith demostration
 
-## Notes for screenshots
+## Note 
 
-1. Auth screen with register/login forms:
-
-2. Chat list after creating chats:
-
-3. Conversation with user + assistant messages:
+You can find dull report in wad-2026-esamaykin.pdf

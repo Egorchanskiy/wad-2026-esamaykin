@@ -16,7 +16,7 @@ FastAPI + MongoDB + Redis + local LLM chat application with SPA UI.
 - JWT (access + refresh)
 - GitHub OAuth
 - llama-cpp-python 
-- Local model: `https://huggingface.co/brunopio/Qwen3.5-14B-A3B-Claude-4.6-Opus-Reasoning-Distilled-reap-Q4_K_M-GGUF/blob/main/qwen3.5-14b-a3b-claude-4.6-opus-reasoning-distilled-reap-q4_k_m.gguf`
+- Local model to test: `https://huggingface.co/hugging-quants/Llama-3.2-1B-Instruct-Q4_K_M-GGUF/blob/main/llama-3.2-1b-instruct-q4_k_m.gguf`
 - Docker / Docker Compose
 
 ## Run locally (single command)

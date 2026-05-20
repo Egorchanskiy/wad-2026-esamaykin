@@ -1,6 +1,7 @@
 # wad-2026-esamaykin
 
 FastAPI + MongoDB + Redis + local LLM chat application with SPA UI.
+You can find final report [here](https://github.com/Egorchanskiy/wad-2026-esamaykin/blob/main/arch/wad-2026-esamaykin.pdf)
 
 ## Chosen architecture
 
@@ -16,7 +17,7 @@ FastAPI + MongoDB + Redis + local LLM chat application with SPA UI.
 - JWT (access + refresh)
 - GitHub OAuth
 - llama-cpp-python 
-- Local model to test: `https://huggingface.co/hugging-quants/Llama-3.2-1B-Instruct-Q4_K_M-GGUF/blob/main/llama-3.2-1b-instruct-q4_k_m.gguf`
+- [Local model to test](https://huggingface.co/hugging-quants/Llama-3.2-1B-Instruct-Q4_K_M-GGUF/blob/main/llama-3.2-1b-instruct-q4_k_m.gguf)
 - Docker / Docker Compose
 
 ## Run locally (single command)

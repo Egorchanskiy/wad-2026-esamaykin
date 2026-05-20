@@ -16,8 +16,8 @@ The project uses **SPA** strategy, therefore backend architecture follows **MCS*
 
 ## Notes for screenshots
 
-Run the project with Docker Compose, open `http://localhost:8000/`, and capture:
+1. Auth screen with register/login forms:
 
-1. Auth screen with register/login forms
-2. Chat list after creating chats
-3. Conversation with user + assistant messages
+2. Chat list after creating chats:
+
+3. Conversation with user + assistant messages:

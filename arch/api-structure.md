@@ -19,7 +19,7 @@ Base prefix: `/api/v1`
 ## Chats and messages
 
 - `POST /chats` - create chat
-- `GET /chats` - list current user chats
+- `GET /chats` - list current working user chats
 - `GET /chats/{chat_id}/messages` - full chat history
 - `POST /chats/{chat_id}/messages` - add raw user message
 - `POST /chats/{chat_id}/ask` - ask LLM, persist user+assistant messages
